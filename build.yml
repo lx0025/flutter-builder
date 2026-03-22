@@ -10,7 +10,7 @@ on:
         description: 'Telegram Chat ID'
         required: true
       build_type:
-        description: 'Build Type (apk/appbundle/web)'
+        description: 'Build Type'
         required: false
         default: 'apk'
 
@@ -36,16 +36,16 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       
-      - name: Download project zip
+      - name: Download project
         run: |
           mkdir -p projects
           cd projects
           BUILD_ID="${{ github.event.inputs.build_id }}"
-          wget -O ${BUILD_ID}.zip "https://github.com/${{ github.repository }}/raw/main/projects/${BUILD_ID}.zip"
+          curl -L -o ${BUILD_ID}.zip "https://github.com/${{ github.repository }}/raw/main/projects/${BUILD_ID}.zip"
           unzip -o "${BUILD_ID}.zip" -d "${BUILD_ID}"
+          ls -la
           
       - name: Build APK
-        if: ${{ github.event.inputs.build_type == 'apk' || !github.event.inputs.build_type }}
         run: |
           BUILD_ID="${{ github.event.inputs.build_id }}"
           cd projects/${BUILD_ID}
@@ -53,21 +53,8 @@ jobs:
           flutter pub get
           flutter build apk --release
           
-      - name: Upload APK
-        if: ${{ github.event.inputs.build_type == 'apk' || !github.event.inputs.build_type }}
+      - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: app-release
           path: projects/${{ github.event.inputs.build_id }}/build/app/outputs/flutter-apk/app-release.apk
-          
-      - name: Send to Telegram
-        if: always()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ github.event.inputs.chat_id }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            ✅ Build completed!
-            Build ID: ${{ github.event.inputs.build_id }}
-            Type: ${{ github.event.inputs.build_type }}
-            Status: ${{ job.status }}
